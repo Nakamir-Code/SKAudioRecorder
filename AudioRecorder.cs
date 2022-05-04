@@ -1,26 +1,18 @@
 ﻿using StereoKit;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Windows.Devices.Enumeration;
-using Windows.Media.Capture;
-using Windows.Media.MediaProperties;
-using Windows.Storage;
 
 namespace AudioRecording
 {
+
+    // Basic Microphone recording sample using Stereokit
     class AudioRecorder
     {
-        MediaCapture mediaCapture = new MediaCapture();
-        //StorageFolder folder = KnownFolders.DocumentsLibrary;
-        LowLagMediaRecording _mediaRecording;
-        bool isRecording = false;
+        float[] micBuffer = new float[0];
+        Sound micStream;
 
-        public async void Init()
+        public void Init()
         {
-            await InitMediaCapture();
+            InitMic();
 
             InitSK();
 
@@ -39,6 +31,11 @@ namespace AudioRecording
                 Environment.Exit(1);
         }
 
+        void InitMic()
+        {
+            micStream = Sound.CreateStream(10f);
+        }
+
         void SKStep()
         {
             // Core application loop
@@ -50,66 +47,51 @@ namespace AudioRecording
                 UI.WindowBegin("Window Button", ref buttonPose);
                 if (UI.Button("Toggle Recording"))
                     ToggleRecording();
+                if (UI.Button("Play Recording"))
+                    PlayRecording();
                 UI.WindowEnd();
 
+
+                if (Microphone.IsRecording)
+                {
+                    micBuffer = new float[Microphone.Sound.UnreadSamples];
+
+                    int samples = Microphone.Sound.ReadSamples(ref micBuffer);
+
+                    micStream.WriteSamples(micBuffer);
+                }
+
+                
             })) ;
             SK.Shutdown();
         }
 
         void ToggleRecording()
         {
-            if (!isRecording)
+            if (!Microphone.IsRecording)
             {
-                StartRecording();
-                isRecording = true;
+                StartRecording();                
             }
             else
             {
-                StopRecording();
-                isRecording = false;
+                StopRecording();                
             }
-
         }
 
-        async Task InitMediaCapture()
+
+        void StartRecording()
         {
-            var allAudioDevices = await DeviceInformation.FindAllAsync(DeviceClass.AudioCapture);
-            DeviceInformation microphone = allAudioDevices.FirstOrDefault();
-
-            MediaCaptureInitializationSettings mediaInitSettings = new MediaCaptureInitializationSettings
-            {
-                AudioDeviceId = microphone.Id,
-                StreamingCaptureMode = StreamingCaptureMode.Audio
-            };
-
-            await mediaCapture.InitializeAsync(mediaInitSettings);
-
-            mediaCapture.RecordLimitationExceeded += MediaCapture_RecordLimitationExceeded;
-            var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
-            StorageFile file = await localFolder.CreateFileAsync("audio.mp3", CreationCollisionOption.GenerateUniqueName);
-            _mediaRecording = await mediaCapture.PrepareLowLagRecordToStorageFileAsync(
-                    MediaEncodingProfile.CreateMp3(AudioEncodingQuality.High), file);
-
-            // e.g. C:\Users\cwule\AppData\Local\Packages\3c8d17f6-227f-4982-a0ca-44b8dd8e9be1_qaswtywkfkn9m
-            string appPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+            Microphone.Start();
         }
 
-
-        async void MediaCapture_RecordLimitationExceeded(MediaCapture sender)
+        void StopRecording()
         {
-            await _mediaRecording.StopAsync();
-            System.Diagnostics.Debug.WriteLine("Record limitation exceeded.");
+            Microphone.Stop();
         }
 
-        async void StartRecording()
+        void PlayRecording()
         {
-            await _mediaRecording.StartAsync();
+            micStream.Play(Input.Head.position);
         }
-
-        async void StopRecording()
-        {
-            await _mediaRecording.StopAsync();
-        }
-
     }
 }
