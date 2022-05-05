@@ -100,7 +100,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform" Version="6.2.9" />
-    <PackageReference Include="StereoKit" Version="0.3.*" />
+    <PackageReference Include="StereoKit" Version="0.3.6-preview.6" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '16.0' ">
     <VisualStudioVersion>16.0</VisualStudioVersion>

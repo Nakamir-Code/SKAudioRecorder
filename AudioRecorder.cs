@@ -1,18 +1,28 @@
 ﻿using StereoKit;
 using System;
+using System.Diagnostics;
 
 namespace AudioRecording
 {
-
-    // Basic Microphone recording sample using Stereokit
     class AudioRecorder
     {
+        // the microphone buffer, will be refilled every frame
         float[] micBuffer = new float[0];
+        // the sound stream, will be created in the end from the accumulated micbuffer
         Sound micStream;
+
+        // the array where the micbuffer will be copied each frame, the maximum length of the recording is 48000 (bitrate) * x seconds
+        float[] totalAudio = new float[48000 * 60];
+
+        // keep track where to write in the totalAudio array
+        int soundPos = 0;
+
+        // the recording Start time
+        float startTime;
 
         public void Init()
         {
-            InitMic();
+            //InitMic();
 
             InitSK();
 
@@ -33,7 +43,7 @@ namespace AudioRecording
 
         void InitMic()
         {
-            micStream = Sound.CreateStream(10f);
+            // Not used anymore
         }
 
         void SKStep()
@@ -56,12 +66,23 @@ namespace AudioRecording
                 {
                     micBuffer = new float[Microphone.Sound.UnreadSamples];
 
+                    // Debug.WriteLine("Unread samples: " + Microphone.Sound.UnreadSamples.ToString());
+
+                    // read all samples acquired during last frame to micBuffer
                     int samples = Microphone.Sound.ReadSamples(ref micBuffer);
+                    // Debug.WriteLine("Samples this frame: " + samples.ToString());
 
-                    micStream.WriteSamples(micBuffer);
+                    // save micBuffer to totalAudio recording Array
+                    if (soundPos + samples < totalAudio.Length)
+                    {
+                        for (int i = 0; i < samples; i++)
+                            totalAudio[soundPos + i] = micBuffer[i];
+                        soundPos = soundPos + samples;
+                    }
+                    // if totalAudio is full/ maximum recording time exceeded, stop recording
+                    else
+                        StopRecording();
                 }
-
-                
             })) ;
             SK.Shutdown();
         }
@@ -70,11 +91,12 @@ namespace AudioRecording
         {
             if (!Microphone.IsRecording)
             {
-                StartRecording();                
+                StartRecording();
+                startTime = Time.Totalf;
             }
             else
             {
-                StopRecording();                
+                StopRecording();
             }
         }
 
@@ -87,6 +109,16 @@ namespace AudioRecording
         void StopRecording()
         {
             Microphone.Stop();
+
+            // cut the totalAudio array to the actual length of the recording
+            Array.Resize(ref totalAudio, soundPos);
+
+            float recordingTime = Time.Totalf - startTime;
+            //micStream = Sound.CreateStream(totalAudio.Length / 48000f);
+
+            // create a StereoKit.Sound stream with the length of the actual recording
+            micStream = Sound.CreateStream(recordingTime);
+            micStream.WriteSamples(totalAudio);
         }
 
         void PlayRecording()
