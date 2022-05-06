@@ -7,8 +7,9 @@ namespace AudioRecording
     {   
         static void Main(string[] args)
         {
-            AudioRecorder recorder = new AudioRecorder();
-            recorder.Init();
+            App app = new App();
+            app.Init();
+
         }
 
      

@@ -1,10 +1,11 @@
 ﻿using StereoKit;
+using StereoKit.Framework;
 using System;
 using System.Diagnostics;
 
 namespace AudioRecording
 {
-    class AudioRecorder
+    class AudioRecorder : IStepper
     {
         // the microphone buffer, will be refilled every frame
         float[] micBuffer = new float[0];
@@ -20,71 +21,46 @@ namespace AudioRecording
         // the recording Start time
         float startTime;
 
-        public void Init()
+        // IStepper needs this
+        public bool Enabled => true;
+
+        public bool Initialize() => true;
+
+        public void Step()
         {
-            //InitMic();
 
-            InitSK();
+            Vec3 buttonLoc = Input.Head.position + Input.Head.Forward * 50 * U.cm;
+            Pose buttonPose = new Pose(buttonLoc, Quat.LookDir(-Input.Head.Forward));
 
-            SKStep();
-        }
+            UI.WindowBegin("Window Button", ref buttonPose);
+            if (UI.Button("Toggle Recording"))
+                ToggleRecording();
+            if (UI.Button("Play Recording"))
+                PlayRecording();
+            UI.WindowEnd();
 
-        void InitSK()
-        {
-            // Initialize StereoKit
-            SKSettings settings = new SKSettings
+
+            if (Microphone.IsRecording)
             {
-                appName = "AudioRecording",
-                assetsFolder = "Assets",
-            };
-            if (!SK.Initialize(settings))
-                Environment.Exit(1);
-        }
+                micBuffer = new float[Microphone.Sound.UnreadSamples];
 
-        void InitMic()
-        {
-            // Not used anymore
-        }
+                // Debug.WriteLine("Unread samples: " + Microphone.Sound.UnreadSamples.ToString());
 
-        void SKStep()
-        {
-            // Core application loop
-            while (SK.Step(() =>
-            {
-                Vec3 buttonLoc = Input.Head.position + Input.Head.Forward * 50 * U.cm;
-                Pose buttonPose = new Pose(buttonLoc, Quat.LookDir(-Input.Head.Forward));
+                // read all samples acquired during last frame to micBuffer
+                int samples = Microphone.Sound.ReadSamples(ref micBuffer);
+                // Debug.WriteLine("Samples this frame: " + samples.ToString());
 
-                UI.WindowBegin("Window Button", ref buttonPose);
-                if (UI.Button("Toggle Recording"))
-                    ToggleRecording();
-                if (UI.Button("Play Recording"))
-                    PlayRecording();
-                UI.WindowEnd();
-
-
-                if (Microphone.IsRecording)
+                // save micBuffer to totalAudio recording Array
+                if (soundPos + samples < totalAudio.Length)
                 {
-                    micBuffer = new float[Microphone.Sound.UnreadSamples];
-
-                    // Debug.WriteLine("Unread samples: " + Microphone.Sound.UnreadSamples.ToString());
-
-                    // read all samples acquired during last frame to micBuffer
-                    int samples = Microphone.Sound.ReadSamples(ref micBuffer);
-                    // Debug.WriteLine("Samples this frame: " + samples.ToString());
-
-                    // save micBuffer to totalAudio recording Array
-                    if (soundPos + samples < totalAudio.Length)
-                    {
-                        for (int i = 0; i < samples; i++)
-                            totalAudio[soundPos + i] = micBuffer[i];
-                        soundPos = soundPos + samples;
-                    }
-                    // if totalAudio is full/ maximum recording time exceeded, stop recording
-                    else
-                        StopRecording();
+                    for (int i = 0; i < samples; i++)
+                        totalAudio[soundPos + i] = micBuffer[i];
+                    soundPos = soundPos + samples;
                 }
-            })) ;
-            SK.Shutdown();
+                // if totalAudio is full/ maximum recording time exceeded, stop recording
+                else
+                    StopRecording();
+            }
         }
 
         void ToggleRecording()
@@ -124,6 +100,11 @@ namespace AudioRecording
         void PlayRecording()
         {
             micStream.Play(Input.Head.position);
+        }
+
+        public void Shutdown()
+        {
+            Microphone.Stop();
         }
     }
 }
