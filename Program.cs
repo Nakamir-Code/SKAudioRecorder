@@ -1,6 +1,3 @@
-using StereoKit;
-using System;
-
 namespace AudioRecording
 {
     class Program
@@ -9,7 +6,6 @@ namespace AudioRecording
         {
             App app = new App();
             app.Init();
-
         }
 
      

@@ -12,11 +12,11 @@ namespace AudioRecording
         // the sound stream, will be created in the end from the accumulated micbuffer
         Sound micStream;
 
-        // the array where the micbuffer will be copied each frame, the maximum length of the recording is 48000 (bitrate) * x seconds
-        float[] totalAudio = new float[48000 * 60];
+        // the array where the micbuffer will be copied each frame
+        float[] totalAudio;
 
         // keep track where to write in the totalAudio array
-        int soundPos = 0;
+        int soundPos;
 
         // the recording Start time
         float startTime;
@@ -24,6 +24,7 @@ namespace AudioRecording
         // IStepper needs this
         public bool Enabled => true;
 
+        // IStepper needs this
         public bool Initialize() => true;
 
         public void Step()
@@ -35,7 +36,7 @@ namespace AudioRecording
             UI.WindowBegin("Window Button", ref buttonPose);
             if (UI.Button("Toggle Recording"))
                 ToggleRecording();
-            if (UI.Button("Play Recording"))
+            if (!Microphone.IsRecording && micStream != null && UI.Button("Play Recording"))
                 PlayRecording();
             UI.WindowEnd();
 
@@ -57,7 +58,7 @@ namespace AudioRecording
                         totalAudio[soundPos + i] = micBuffer[i];
                     soundPos = soundPos + samples;
                 }
-                // if totalAudio is full/ maximum recording time exceeded, stop recording
+                // if totalAudio[] is full/ maximum recording time exceeded, stop recording
                 else
                     StopRecording();
             }
@@ -68,7 +69,6 @@ namespace AudioRecording
             if (!Microphone.IsRecording)
             {
                 StartRecording();
-                startTime = Time.Totalf;
             }
             else
             {
@@ -79,7 +79,11 @@ namespace AudioRecording
 
         void StartRecording()
         {
+            // the maximum length of the recording is 48000(bitrate) * x seconds
+            totalAudio = new float[48000 * 60];
+            soundPos = 0;
             Microphone.Start();
+            startTime = Time.Totalf;
         }
 
         void StopRecording()
